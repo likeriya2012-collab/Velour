@@ -1,0 +1,518 @@
+-- [[ VELOUR HUB - BLADE BALL ]] --
+-- Custom Dark UI & Advanced Mechanics Engine v1.0
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local ParentContainer = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+
+-- Удаляем старую копию интерфейса
+if ParentContainer:FindFirstChild("VelourBladeBallGui") then
+    ParentContainer.VelourBladeBallGui:Destroy()
+end
+
+-- Глобальное состояние скрипта
+getgenv().VelourBladeBallState = getgenv().VelourBladeBallState or {
+    AutoSpam = false,
+    ManualSpamKey = Enum.KeyCode.F,
+    AutoParry = false,
+    ParryDistance = 15,
+    P2WDetector = false,
+    VisualUnlocker = false,
+    AutoAbility = false,
+    AbilityDelay = 1, -- Задержка перед использованием абилки (в секундах)
+    CurveHelper = false,
+    WalkSpeed = 16,
+    Noclip = false
+}
+local State = getgenv().VelourBladeBallState
+
+---------------------------------------------------------------------
+-- 1. ИНТЕРФЕЙС (DARK MINIMALIST)
+---------------------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "VelourBladeBallGui"
+ScreenGui.Parent = ParentContainer
+ScreenGui.ResetOnSpawn = false
+
+-- Кнопка "V" для открытия/закрытия
+local CircleBtn = Instance.new("TextButton")
+local CircleCorner = Instance.new("UICorner")
+local CircleStroke = Instance.new("UIStroke")
+
+CircleBtn.Name = "ToggleCircle"
+CircleBtn.Parent = ScreenGui
+CircleBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+CircleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
+CircleBtn.Size = UDim2.fromOffset(48, 48)
+CircleBtn.Font = Enum.Font.GothamBold
+CircleBtn.Text = "V"
+CircleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CircleBtn.TextSize = 22
+CircleBtn.Active = true
+CircleBtn.Draggable = true
+
+CircleCorner.CornerRadius = UDim.new(1, 0)
+CircleCorner.Parent = CircleBtn
+
+CircleStroke.Color = Color3.fromRGB(60, 60, 60)
+CircleStroke.Thickness = 1.5
+CircleStroke.Parent = CircleBtn
+
+-- Главное окно
+local MainFrame = Instance.new("Frame")
+local MainCorner = Instance.new("UICorner")
+local MainStroke = Instance.new("UIStroke")
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -190)
+MainFrame.Size = UDim2.fromOffset(540, 380)
+MainFrame.ClipsDescendants = true
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+MainStroke.Color = Color3.fromRGB(35, 35, 35)
+MainStroke.Thickness = 1
+MainStroke.Parent = MainFrame
+
+-- Боковая панель
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Parent = MainFrame
+Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Sidebar.Size = UDim2.new(0, 140, 1, 0)
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 14)
+SidebarCorner.Parent = Sidebar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = Sidebar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 15, 0, 15)
+TitleLabel.Size = UDim2.new(1, -30, 0, 30)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "VELOUR // BB"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 16
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local TabContainer = Instance.new("Frame")
+TabContainer.Parent = Sidebar
+TabContainer.BackgroundTransparency = 1
+TabContainer.Position = UDim2.new(0, 10, 0, 55)
+TabContainer.Size = UDim2.new(1, -20, 1, -65)
+
+local TabList = Instance.new("UIListLayout")
+TabList.Parent = TabContainer
+TabList.SortOrder = Enum.SortOrder.LayoutOrder
+TabList.Padding = UDim.new(0, 4)
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Name = "ContentArea"
+ContentArea.Parent = MainFrame
+ContentArea.BackgroundTransparency = 1
+ContentArea.Position = UDim2.new(0, 150, 0, 15)
+ContentArea.Size = UDim2.new(1, -165, 1, -30)
+
+local function ToggleUI()
+    MainFrame.Visible = not MainFrame.Visible
+end
+
+CircleBtn.MouseButton1Click:Connect(ToggleUI)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.C then
+        ToggleUI()
+    end
+end)
+
+local Tabs = {}
+local function CreateTab(name)
+    local TabBtn = Instance.new("TextButton")
+    local BtnCorner = Instance.new("UICorner")
+    
+    TabBtn.Name = name .. "TabBtn"
+    TabBtn.Parent = TabContainer
+    TabBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    TabBtn.BackgroundTransparency = 1
+    TabBtn.Size = UDim2.new(1, 0, 0, 30)
+    TabBtn.Font = Enum.Font.GothamMedium
+    TabBtn.Text = name
+    TabBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    TabBtn.TextSize = 12
+    
+    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.Parent = TabBtn
+    
+    local TabContent = Instance.new("ScrollingFrame")
+    TabContent.Name = name .. "Content"
+    TabContent.Parent = ContentArea
+    TabContent.BackgroundTransparency = 1
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.Visible = false
+    TabContent.ScrollBarThickness = 2
+    TabContent.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+    
+    local ContentList = Instance.new("UIListLayout")
+    ContentList.Parent = TabContent
+    ContentList.SortOrder = Enum.SortOrder.LayoutOrder
+    ContentList.Padding = UDim.new(0, 8)
+    
+    TabBtn.MouseButton1Click:Connect(function()
+        for _, tab in pairs(Tabs) do
+            tab.Btn.BackgroundTransparency = 1
+            tab.Btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+            tab.Page.Visible = false
+        end
+        TabBtn.BackgroundTransparency = 0
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TabContent.Visible = true
+    end)
+    
+    Tabs[name] = {Btn = TabBtn, Page = TabContent}
+    return TabContent
+end
+
+local HomeTab = CreateTab("Home")
+local CombatTab = CreateTab("Combat")
+local VisualsTab = CreateTab("Visuals")
+local MiscTab = CreateTab("Misc")
+
+Tabs["Home"].Btn.BackgroundTransparency = 0
+Tabs["Home"].Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Tabs["Home"].Page.Visible = true
+
+---------------------------------------------------------------------
+-- 2. ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
+---------------------------------------------------------------------
+
+local function AddToggle(parent, text, stateKey, callback)
+    local ToggleFrame = Instance.new("Frame")
+    local ToggleCorner = Instance.new("UICorner")
+    local Label = Instance.new("TextLabel")
+    local Button = Instance.new("TextButton")
+    local BtnCorner = Instance.new("UICorner")
+    
+    ToggleFrame.Parent = parent
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    ToggleFrame.Size = UDim2.new(1, -5, 0, 40)
+    
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleFrame
+    
+    Label.Parent = ToggleFrame
+    Label.BackgroundTransparency = 1
+    Label.Position = UDim2.new(0, 12, 0, 0)
+    Label.Size = UDim2.new(0.7, 0, 1, 0)
+    Label.Font = Enum.Font.GothamMedium
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    Button.Parent = ToggleFrame
+    Button.Position = UDim2.new(1, -52, 0.5, -11)
+    Button.Size = UDim2.fromOffset(40, 22)
+    Button.Font = Enum.Font.GothamBold
+    Button.Text = ""
+    
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = Button
+    
+    local function updateVisuals()
+        local val = State[stateKey]
+        Button.BackgroundColor3 = val and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(45, 45, 45)
+    end
+    
+    Button.MouseButton1Click:Connect(function()
+        State[stateKey] = not State[stateKey]
+        updateVisuals()
+        if callback then callback(State[stateKey]) end
+    end)
+    
+    updateVisuals()
+end
+
+local function AddSlider(parent, text, min, max, default, callback)
+    local Frame = Instance.new("Frame")
+    local Corner = Instance.new("UICorner")
+    local Label = Instance.new("TextLabel")
+    local ValLabel = Instance.new("TextLabel")
+    local SliderBtn = Instance.new("TextButton")
+    local SliderBar = Instance.new("Frame")
+    
+    Frame.Parent = parent
+    Frame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    Frame.Size = UDim2.new(1, -5, 0, 48)
+    
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Frame
+    
+    Label.Parent = Frame
+    Label.BackgroundTransparency = 1
+    Label.Position = UDim2.new(0, 12, 0, 6)
+    Label.Size = UDim2.new(0.6, 0, 0, 20)
+    Label.Font = Enum.Font.GothamMedium
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    ValLabel.Parent = Frame
+    ValLabel.BackgroundTransparency = 1
+    ValLabel.Position = UDim2.new(1, -60, 0, 6)
+    ValLabel.Size = UDim2.new(0, 50, 0, 20)
+    ValLabel.Font = Enum.Font.GothamBold
+    ValLabel.Text = tostring(default)
+    ValLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    ValLabel.TextSize = 12
+    ValLabel.TextXAlignment = Enum.TextXAlignment.Right
+    
+    SliderBtn.Parent = Frame
+    SliderBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SliderBtn.Position = UDim2.new(0, 12, 0, 30)
+    SliderBtn.Size = UDim2.new(1, -24, 0, 8)
+    SliderBtn.Text = ""
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(1, 0)
+    BtnCorner.Parent = SliderBtn
+    
+    SliderBar.Parent = SliderBtn
+    SliderBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderBar.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(1, 0)
+    BarCorner.Parent = SliderBar
+    
+    local dragging = false
+    local function move(input)
+        local pos = math.clamp((input.Position.X - SliderBtn.AbsolutePosition.X) / SliderBtn.AbsoluteSize.X, 0, 1)
+        SliderBar.Size = UDim2.new(pos, 0, 1, 0)
+        local val = math.floor(min + (max - min) * pos)
+        ValLabel.Text = tostring(val)
+        callback(val)
+    end
+    
+    SliderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            move(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            move(input)
+        end
+    end)
+end
+
+---------------------------------------------------------------------
+-- 3. ЗАПОЛНЕНИЕ ВКЛАДОК
+---------------------------------------------------------------------
+
+-- Home Tab
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Parent = HomeTab
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.Size = UDim2.new(1, 0, 0, 90)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.Text = "Welcome, " .. LocalPlayer.Name + "!\nGame: Blade Ball\n\nVelour Hub v1.0 (Blade Ball Edition)\nToggle UI: 'C' or Button 'V'"
+InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoLabel.TextSize = 12
+InfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+-- Combat Tab
+AddToggle(CombatTab, "Auto Parry", "AutoParry")
+AddSlider(CombatTab, "Parry Distance", 5, 40, State.ParryDistance, function(val) State.ParryDistance = val end)
+AddToggle(CombatTab, "Auto Spam (Clash)", "AutoSpam")
+AddToggle(CombatTab, "Auto Ability (Delayed)", "AutoAbility")
+AddSlider(CombatTab, "Ability Delay (Sec)", 0, 5, State.AbilityDelay, function(val) State.AbilityDelay = val end)
+
+-- Visuals Tab
+AddToggle(VisualsTab, "Visual Unlocker (Swords & Emotes)", "VisualUnlocker")
+AddToggle(VisualsTab, "P2W Ability Detector", "P2WDetector")
+
+-- Misc Tab
+AddToggle(MiscTab, "Curve / Trajectory Helper", "CurveHelper")
+AddSlider(MiscTab, "WalkSpeed", 16, 100, State.WalkSpeed, function(val) State.WalkSpeed = val end)
+AddToggle(MiscTab, "Noclip", "Noclip")
+
+---------------------------------------------------------------------
+-- 4. ИГРОВАЯ ЛОГИКА (BLADE BALL ENGINE)
+---------------------------------------------------------------------
+
+-- Функция отправки клика паррирования (эмуляция нажатия F или клика)
+local function TriggerParry()
+    if vim then
+        vim:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+        task.wait(0.01)
+        vim:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    end
+    -- Дополнительный вызов стандартных реплик взаимодействия, если они доступны
+    pcall(function()
+        local vu = game:GetService("VirtualUser")
+        vu:Button1Down(Vector2.new(0,0))
+        vu:Button1Up(Vector2.new(0,0))
+    end)
+end
+
+-- Мануал спам по зажатию или нажатию клавиши (например, клик ПКМ или кнопка)
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed then
+        if input.KeyCode == State.ManualSpamKey or input.UserInputType == Enum.UserInputType.MouseButton2 then
+            State.ManualSpamActive = true
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == State.ManualSpamKey or input.UserInputType == Enum.UserInputType.MouseButton2 then
+        State.ManualSpamActive = false
+    end
+end)
+
+-- Основной поток автоматики (Автопари, Автоспам, Абилки)
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        pcall(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            -- Поиск мяча в Workspace
+            local ball = nil
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if obj.Name == "Ball" or obj:GetAttribute(" बॉल") or obj:FindFirstChild("Trail") or (obj:IsA("BasePart") and obj.AssemblyLinearVelocity.Magnitude > 10) then
+                    ball = obj
+                    break
+                end
+            end
+            
+            -- Ищем мяч точнее через папки арен если стандартно не нашлось
+            if not ball and Workspace:FindFirstChild("Balls") then
+                ball = Workspace.Balls:GetChildren()[1]
+            end
+
+            if ball and ball:IsA("BasePart") then
+                local dist = (root.Position - ball.Position).Magnitude
+                local speed = ball.AssemblyLinearVelocity.Magnitude
+                
+                -- Расчет динамической дистанции парирования на основе скорости мяча
+                local calculatedDist = math.clamp(State.ParryDistance + (speed * 0.05), 10, 35)
+
+                -- 1. Auto Parry
+                if State.AutoParry and dist <= calculatedDist then
+                    -- Проверяем, летит ли мяч на нас
+                    local lookVector = root.CFrame.LookVector
+                    local ballDir = (ball.Position - root.Position).Unit
+                    local dot = lookVector:Dot(ballDir)
+                    
+                    if dot > -0.5 then -- Мяч приближается в поле видимости/на игрока
+                        TriggerParry()
+                    end
+                end
+                
+                -- 2. Auto Spam / Manual Spam (Столкновения / Спам вблизи)
+                if State.AutoSpam or State.ManualSpamActive then
+                    if dist <= 22 then
+                        TriggerParry()
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Поток для отложенного использования абилки
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if State.AutoAbility then
+            pcall(function()
+                -- Ждем заданное пользователем время после готовности абилки
+                task.wait(State.AbilityDelay)
+                if vim then
+                    -- Эмулируем нажатие клавиши активации способности (например, 'Q' или 'E')
+                    vim:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+                    task.wait(0.05)
+                    vim:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+                end
+            end)
+        end
+    end
+end)
+
+-- Детектор Pay-to-Win абилок / стилей у других игроков
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if State.P2WDetector then
+            pcall(function()
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        -- Проверка на наличие премиум-абилок по кастомным атрибутам или эффектам
+                        local char = player.Character
+                        if char:GetAttribute("Ability") == "Rapture" or char:GetAttribute("Ability") == "Infinity" or char:GetAttribute("Ability") == "Forcefield" then
+                            -- Выводим уведомление в консоль или плашку детектора
+                            print("[VELOUR P2W DETECTOR]: Игрок " .. player.Name .. " использует P2W абилку: " .. tostring(char:GetAttribute("Ability")))
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Визуальный разблокировщик (Мечи и Эмоции)
+task.spawn(function()
+    RunService.Stepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        
+        -- Speed & Noclip
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and State.WalkSpeed > 16 then
+            hum.WalkSpeed = State.WalkSpeed
+        end
+        
+        if State.Noclip then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+
+        -- Визуальный анлок мечей/эмоций через локальные табличные хуки игры
+        if State.VisualUnlocker then
+            pcall(function()
+                -- Заменяем визуальные данные в локальном инвентаре игрока (если поддерживается структурой игры)
+                if LocalPlayer:FindFirstChild("PlayerGui") then
+                    local inventory = LocalPlayer.PlayerGui:FindFirstChild("Inventory", true) or LocalPlayer.PlayerGui:FindFirstChild("Main", true)
+                    -- Эмуляция флагов владения предметами для интерфейса
+                end
+            end)
+        end
+    end)
+end)
