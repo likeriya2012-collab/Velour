@@ -1,0 +1,15 @@
+-- Автоматическое прохождение Skill Check (встраивается в цикл или отдельный поток)
+local function HandleSkillChecks()
+    if not State.AutoSkillCheck then return end
+    
+    -- Ищем элементы интерфейса, отвечающие за проверку навыков ( SkillCheck / Circle / Ring )
+    for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+        if gui:IsA("TextLabel") or gui:IsA("ImageLabel") then
+            local name = gui.Name:lower()
+            if name:find("skillcheck") or name:find("target") or name:find("circle") then
+                -- Эмулируем нажатие клавиши пробела для успешного прохождения
+                if vim and vim.fire سپس ... -- или через VirtualInputManager
+            end
+        end
+    end
+end
